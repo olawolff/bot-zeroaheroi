@@ -1,9 +1,10 @@
 ﻿using AplicacaoWebComAPI.Models;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Net.Http;
+using System.Text;
 
 namespace AplicacaoWebComAPI.Controllers
 {
@@ -14,64 +15,126 @@ namespace AplicacaoWebComAPI.Controllers
         {
         }
 
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
-            //Como eu coloquei a pasta Cursos (da view) dentro de outro diretório (Gestão) eu preciso
-            //informar para a minha controller aonde está o novo arquivo, por isso passo a URL completa
-            //dele.
+            IList<Curso> cursos;
 
-            //Vale lembrar que se você não colocar a url completa dele, ele irá procurar por um Index dentro
-            //da pasta /Views/Cursos/ [ele pega o nome da controller], e na pasta /Views/Shared
-            return View("~/Views/Gestao/Cursos/Index.cshtml", await _context.Curso.ToListAsync());
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/cursos/index").Result;
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    cursos = JsonConvert.DeserializeObject<IList<Curso>>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
+
+            return View(cursos);
         }
 
-        // GET: Cursos/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public IActionResult Details(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var curso = await _context.Curso.SingleOrDefaultAsync(m => m.Id == id);
+            Curso curso = new Curso();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/cursos/ObterCurso").Result;
+                var httpRequest = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("http://localhost:63634/api/cursos/ObterCurso"),
+                    Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                };
+
+                response = client.SendAsync(httpRequest).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    curso = JsonConvert.DeserializeObject<Curso>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
 
             if (curso == null)
             {
                 return NotFound();
             }
 
-            //Aqui eu não só mudei o diretório como também coloquei um novo nome para o arquivo.
-            return View("~/Views/Gestao/Cursos/Detalhes.cshtml", curso);
+            return View(curso);
         }
 
         public IActionResult Create()
         {
-            //Somente as views Detalhes e Index estão dentro do novo diretório
             return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,NomeDoCurso,Descricao")] Curso curso)
+        public IActionResult Create([Bind("Id,NomeDoCurso,Descricao")] Curso curso)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(curso);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                using (var client = new HttpClient())
+                {
+                    HttpResponseMessage response = new HttpResponseMessage();
+                    try
+                    {
+                        var content = new StringContent(JsonConvert.SerializeObject(curso), Encoding.UTF8, "application/json");
+                        response = client.PostAsync("http://localhost:63634/api/cursos/create", content).Result;
+                        return RedirectToAction(nameof(Index));
+                    }
+                    catch (Exception)
+                    {
+                        throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                    }
+                }
             }
             return View(curso);
         }
 
-        // GET: Cursos/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        // GET: Alunos/Edit/5
+        public IActionResult Edit(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var curso = await _context.Curso.SingleOrDefaultAsync(m => m.Id == id);
+            Curso curso = new Curso();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/cursos/ObterCurso").Result;
+                var httpRequest = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("http://localhost:63634/api/cursos/ObterCurso"),
+                    Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                };
+
+                response = client.SendAsync(httpRequest).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    curso = JsonConvert.DeserializeObject<Curso>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
             if (curso == null)
             {
                 return NotFound();
@@ -81,45 +144,70 @@ namespace AplicacaoWebComAPI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,NomeDoCurso,Descricao")] Curso curso)
+        public IActionResult Edit(int id, [Bind("Id,NomeDoCurso,Descricao")] Curso curso)
         {
             if (id != curso.Id)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            HttpResponseMessage response = new HttpResponseMessage();
+
+            try
             {
-                try
+                using (var client = new HttpClient())
                 {
-                    _context.Update(curso);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!CursoExists(curso.Id))
+                    var httpRequest = new HttpRequestMessage
                     {
-                        return NotFound();
-                    }
+                        Method = HttpMethod.Put,
+                        RequestUri = new Uri("http://localhost:63634/api/cursos/Edit"),
+                        Content = new StringContent(JsonConvert.SerializeObject(curso), Encoding.UTF8, "application/json")
+                    };
+
+                    response = client.SendAsync(httpRequest).Result;
+
+                    if (response.IsSuccessStatusCode)
+                        return RedirectToAction(nameof(Index));
                     else
-                    {
-                        throw;
-                    }
+                        return View(curso);
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(curso);
+            catch (Exception)
+            {
+                throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+            }
         }
 
-        // GET: Cursos/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public IActionResult Delete(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var curso = await _context.Curso.SingleOrDefaultAsync(m => m.Id == id);
+            Curso curso = new Curso();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/cursos/ObterCurso").Result;
+                var httpRequest = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("http://localhost:63634/api/cursos/ObterCurso"),
+                    Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                };
+
+                response = client.SendAsync(httpRequest).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    curso = JsonConvert.DeserializeObject<Curso>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
             if (curso == null)
             {
                 return NotFound();
@@ -130,17 +218,27 @@ namespace AplicacaoWebComAPI.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public IActionResult DeleteConfirmed(int id)
         {
-            var curso = await _context.Curso.SingleOrDefaultAsync(m => m.Id == id);
-            _context.Curso.Remove(curso);
-            await _context.SaveChangesAsync();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = new HttpResponseMessage();
+                try
+                {
+                    var httpRequest = new HttpRequestMessage
+                    {
+                        Method = HttpMethod.Delete,
+                        RequestUri = new Uri("http://localhost:63634/api/cursos/delete/" + id),
+                        Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                    };
+                    response = client.SendAsync(httpRequest).Result;
+                }
+                catch (Exception)
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
             return RedirectToAction(nameof(Index));
-        }
-
-        private bool CursoExists(int id)
-        {
-            return _context.Curso.Any(e => e.Id == id);
         }
     }
 }

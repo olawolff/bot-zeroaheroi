@@ -25,7 +25,7 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public Curso ObterCnae([FromBody]int id)
+        public Curso ObterCurso([FromBody]int id)
         {
             var curso = _context.Curso.SingleOrDefault(m => m.Id == id);
             return curso;

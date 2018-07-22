@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace AplicacaoWebComAPI.Controllers
@@ -21,7 +21,7 @@ namespace AplicacaoWebComAPI.Controllers
 
             using (var client = new HttpClient())
             {
-                HttpResponseMessage response = client.GetAsync("cnae/index").Result;
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/alunos/index").Result;
                 if (response.IsSuccessStatusCode)
                 {
                     var JsonString = response.Content.ReadAsStringAsync().Result;
@@ -36,14 +36,36 @@ namespace AplicacaoWebComAPI.Controllers
             return View(alunos);
         }
 
-        public async Task<IActionResult> Details(int? id)
+        public IActionResult Details(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var aluno = await _context.Aluno.SingleOrDefaultAsync(m => m.Id == id);
+            Aluno aluno = new Aluno();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/alunos/ObterAluno").Result;
+                var httpRequest = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("http://localhost:63634/api/alunos/ObterAluno"),
+                    Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                };
+
+                response = client.SendAsync(httpRequest).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    aluno = JsonConvert.DeserializeObject<Aluno>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
 
             if (aluno == null)
             {
@@ -60,26 +82,59 @@ namespace AplicacaoWebComAPI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Nome,Email")] Aluno aluno)
+        public IActionResult Create([Bind("Id,Nome,Email")] Aluno aluno)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(aluno);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                using (var client = new HttpClient())
+                {
+                    HttpResponseMessage response = new HttpResponseMessage();
+                    try
+                    {
+                        var content = new StringContent(JsonConvert.SerializeObject(aluno), Encoding.UTF8, "application/json");
+                        response = client.PostAsync("http://localhost:63634/api/alunos/create", content).Result;
+                        return RedirectToAction(nameof(Index));
+                    }
+                    catch (Exception)
+                    {
+                        throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                    }
+                }
             }
             return View(aluno);
         }
 
         // GET: Alunos/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public IActionResult Edit(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var aluno = await _context.Aluno.SingleOrDefaultAsync(m => m.Id == id);
+            Aluno aluno = new Aluno();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/alunos/ObterAluno").Result;
+                var httpRequest = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("http://localhost:63634/api/alunos/ObterAluno"),
+                    Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                };
+
+                response = client.SendAsync(httpRequest).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    aluno = JsonConvert.DeserializeObject<Aluno>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
             if (aluno == null)
             {
                 return NotFound();
@@ -89,44 +144,70 @@ namespace AplicacaoWebComAPI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,Email")] Aluno aluno)
+        public IActionResult Edit(int id, [Bind("Id,Nome,Email")] Aluno aluno)
         {
             if (id != aluno.Id)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            HttpResponseMessage response = new HttpResponseMessage();
+
+            try
             {
-                try
+                using (var client = new HttpClient())
                 {
-                    _context.Update(aluno);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!AlunoExists(aluno.Id))
+                    var httpRequest = new HttpRequestMessage
                     {
-                        return NotFound();
-                    }
+                        Method = HttpMethod.Put,
+                        RequestUri = new Uri("http://localhost:63634/api/alunos/Edit"),
+                        Content = new StringContent(JsonConvert.SerializeObject(aluno), Encoding.UTF8, "application/json")
+                    };
+
+                    response = client.SendAsync(httpRequest).Result;
+
+                    if (response.IsSuccessStatusCode)
+                        return RedirectToAction(nameof(Index));
                     else
-                    {
-                        throw;
-                    }
+                        return View(aluno);
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(aluno);
+            catch (Exception)
+            {
+                throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+            }
         }
 
-        public async Task<IActionResult> Delete(int? id)
+        public IActionResult Delete(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var aluno = await _context.Aluno.SingleOrDefaultAsync(m => m.Id == id);
+            Aluno aluno = new Aluno();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = client.GetAsync("http://localhost:63634/api/alunos/ObterAluno").Result;
+                var httpRequest = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("http://localhost:63634/api/alunos/ObterAluno"),
+                    Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                };
+
+                response = client.SendAsync(httpRequest).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var JsonString = response.Content.ReadAsStringAsync().Result;
+                    aluno = JsonConvert.DeserializeObject<Aluno>(JsonString);
+                }
+                else
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
             if (aluno == null)
             {
                 return NotFound();
@@ -139,15 +220,25 @@ namespace AplicacaoWebComAPI.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var aluno = await _context.Aluno.SingleOrDefaultAsync(m => m.Id == id);
-            _context.Aluno.Remove(aluno);
-            await _context.SaveChangesAsync();
+            using (var client = new HttpClient())
+            {
+                HttpResponseMessage response = new HttpResponseMessage();
+                try
+                {
+                    var httpRequest = new HttpRequestMessage
+                    {
+                        Method = HttpMethod.Delete,
+                        RequestUri = new Uri("http://localhost:63634/api/alunos/delete/" + id),
+                        Content = new StringContent(JsonConvert.SerializeObject(id), Encoding.UTF8, "application/json")
+                    };
+                    response = client.SendAsync(httpRequest).Result;
+                }
+                catch (Exception)
+                {
+                    throw new Exception("Falha na comunicação da API: " + response.StatusCode);
+                }
+            }
             return RedirectToAction(nameof(Index));
-        }
-
-        private bool AlunoExists(int id)
-        {
-            return _context.Aluno.Any(e => e.Id == id);
         }
     }
 }
